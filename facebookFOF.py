@@ -3,6 +3,7 @@ import re
 import time
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from webdriver_manager.chrome import ChromeDriverManager
 import os
 from tqdm import tqdm
 import pickle
@@ -14,7 +15,8 @@ password = getpass.getpass('Password:')
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.default_content_setting_values.notifications" : 2}
 chrome_options.add_experimental_option("prefs",prefs)
-driver = webdriver.Chrome(chrome_options=chrome_options)
+# driver = webdriver.Chrome(chrome_options=chrome_options)
+driver = webdriver.Chrome(ChromeDriverManager().install())
 
 driver.get('http://www.facebook.com/')
 
@@ -83,6 +85,7 @@ class MyHTMLParser(HTMLParser):
 my_url = 'http://www.facebook.com/' + username + '/friends'
 
 UNIQ_FILENAME = 'uniq_urls.pickle'
+# UNIQ_FILENAME = 'uniq_urls_sam.pickle'
 if os.path.isfile(UNIQ_FILENAME):
     with open(UNIQ_FILENAME, 'rb') as f:
         uniq_urls = pickle.load(f)
@@ -100,6 +103,7 @@ else:
 
 friend_graph = {}
 GRAPH_FILENAME = 'friend_graph.pickle'
+# GRAPH_FILENAME = 'friend_graph_sam.pickle'
 
 if os.path.isfile(GRAPH_FILENAME):
     with open(GRAPH_FILENAME, 'rb') as f:
@@ -110,6 +114,10 @@ if os.path.isfile(GRAPH_FILENAME):
 
 for url in tqdm(uniq_urls):
     friend_username = find_friend_from_url(url)
+    # remove friends with no mutuals to run them again
+    # this accomodates for being blocked by fb and needing to re-run
+    if friend_graph[friend_username] == [username]:
+        del friend_graph[friend_username]
     if friend_username in friend_graph.keys():
         continue
 
