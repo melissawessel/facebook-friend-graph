@@ -12,11 +12,15 @@ import getpass
 username = input("Facebook username:")
 password = getpass.getpass('Password:')
 
-chrome_options = webdriver.ChromeOptions()
-prefs = {"profile.default_content_setting_values.notifications" : 2}
-chrome_options.add_experimental_option("prefs",prefs)
-# driver = webdriver.Chrome(chrome_options=chrome_options)
+
+# Alternative headless driver option that I couldn't get to work
+# chrome_options = webdriver.ChromeOptions()
+# prefs = {"profile.default_content_setting_values.notifications" : 2}
+# chrome_options.add_experimental_option("prefs",prefs)
+# chrome_options.add_argument('headless')
+# driver = webdriver.Chrome('/Users/melissawessel/Documents/dev/chromedriver', chrome_options=chrome_options)
 driver = webdriver.Chrome(ChromeDriverManager().install())
+
 
 driver.get('http://www.facebook.com/')
 
@@ -27,6 +31,8 @@ elem = driver.find_element_by_id("pass")
 elem.send_keys(password)
 elem.send_keys(Keys.RETURN)
 time.sleep(5)
+
+print('account authenticated')
 
 SCROLL_PAUSE_TIME = 2
 
@@ -48,6 +54,7 @@ def get_fb_page(url):
         # Calculate new scroll height and compare with last scroll height
         new_height = driver.execute_script("return document.body.scrollHeight")
         if new_height == last_height:
+            print('no more scrolling, done')
             break
         last_height = new_height
     html_source = driver.page_source
@@ -84,8 +91,9 @@ class MyHTMLParser(HTMLParser):
 
 my_url = 'http://www.facebook.com/' + username + '/friends'
 
+print('my url: %s' % my_url)
+
 UNIQ_FILENAME = 'uniq_urls.pickle'
-# UNIQ_FILENAME = 'uniq_urls_sam.pickle'
 if os.path.isfile(UNIQ_FILENAME):
     with open(UNIQ_FILENAME, 'rb') as f:
         uniq_urls = pickle.load(f)
@@ -103,7 +111,6 @@ else:
 
 friend_graph = {}
 GRAPH_FILENAME = 'friend_graph.pickle'
-# GRAPH_FILENAME = 'friend_graph_sam.pickle'
 
 if os.path.isfile(GRAPH_FILENAME):
     with open(GRAPH_FILENAME, 'rb') as f:
@@ -114,15 +121,21 @@ if os.path.isfile(GRAPH_FILENAME):
 
 for url in tqdm(uniq_urls):
     friend_username = find_friend_from_url(url)
-    # remove friends with no mutuals to run them again
+    print(friend_username)
+
     # this accomodates for being blocked by fb and needing to re-run
-    if friend_graph[friend_username] == [username]:
-        del friend_graph[friend_username]
     if friend_username in friend_graph.keys():
-        continue
+        if not friend_graph[friend_username] == [username]:
+            print('already have this friend, next')
+            continue
+        else:
+            print('re-writing this friend')
+            del friend_graph[friend_username]
+
 
     friend_graph[friend_username] = [username]
     mutual_url = 'https://www.facebook.com/{}/friends_mutual'.format(friend_username)
+    print(mutual_url)
     mutual_page = get_fb_page(mutual_url)
 
     parser = MyHTMLParser()
@@ -130,6 +143,7 @@ for url in tqdm(uniq_urls):
     parser.feed(mutual_page)
     mutual_friends_urls = set(parser.urls)
     print('Found {} urls'.format(len(mutual_friends_urls)))
+
 
     for mutual_url in mutual_friends_urls:
         mutual_friend = find_friend_from_url(mutual_url)
